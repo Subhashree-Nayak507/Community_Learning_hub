@@ -34,10 +34,9 @@ export const fetchRedditPosts = async () => {
       title: post.data.title,
       preview: post.data.thumbnail || post.data.selftext.substring(0, 100),
       originalUrl: `https://reddit.com${post.data.permalink}`,
-      metadata: {  // Make sure to include metadata structure
-        isPremium: true,  // Default all to premium or set your logic
-        unlockCost: 10,   // Default cost
-        // Include other metadata you want to track
+      metadata: {  
+        isPremium: true,  
+        unlockCost: 10,   
         upvotes: post.data.ups,
         author: post.data.author,
         subreddit: post.data.subreddit

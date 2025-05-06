@@ -38,59 +38,44 @@ export const spendCredits = async (req, res) => {
       return res.status(400).json({ error: 'Insufficient credits' });
     }
 
-    // Start a transaction session for atomic operations
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    // 1. First update the user's balance
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { $inc: { creditBalance: -unlockCost } },
+      { new: true }
+    );
 
-    try {
-      // Create transaction record
-      const transaction = new Transaction({
-        userId: req.user._id,
-        type: 'spend',
-        amount: unlockCost,
-        purpose: 'unlock_premium',
-        metadata: {
-          contentId: content._id,
-          details: `Unlocked premium content: ${content.title}`
-        }
-      });
+    // 2. Then create the transaction record
+    const transaction = await Transaction.create({
+      userId: req.user._id,
+      type: 'spend',
+      amount: unlockCost,
+      purpose: 'unlock_premium',
+      metadata: {
+        contentId: content._id,
+        details: `Unlocked premium content: ${content.title}`
+      }
+    });
 
-      await transaction.save({ session });
+    await Content.findByIdAndUpdate(
+      contentId,
+      { $set: { 'metadata.isPremium': false } }
+    );
 
-      // Update user balance
-      await User.findByIdAndUpdate(
-        req.user._id,
-        { $inc: { creditBalance: -unlockCost } },
-        { session }
-      );
-
-      // Commit the transaction
-      await session.commitTransaction();
-      
-      // Get updated user balance
-      const updatedUser = await User.findById(req.user._id);
-      
-      res.json({ 
-        success: true,
-        newBalance: updatedUser.creditBalance,
-        transactionId: transaction._id,
-        contentUnlocked: content.title
-      });
-
-    } catch (error) {
-      // If anything fails, abort the transaction
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
-
+    res.json({ 
+      success: true,
+      newBalance: updatedUser.creditBalance,
+      transactionId: transaction._id,
+      contentUnlocked: content.title
+    });
   } catch (error) {
     res.status(500).json({ 
-      error: 'Transaction failed'
+      error: 'Transaction failed',
+      message: error.message
     });
   }
 };
+
 export const getTransactionHistory = async (req, res) => {
   try {
     const transactions = await Transaction.find({ userId: req.user._id })

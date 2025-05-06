@@ -7,6 +7,7 @@ import cron from 'node-cron';
 import { initializeFeed, refreshFeed } from './services/feed.service.js';
 import feedRouter from './routes/user/feed.routes.js';
 import TransactionRouter from './routes/user/transactions.rooute.js';
+import adminRouter from './routes/admin/admin.route.js';
 
 dotenv.config();
 const app= express();
@@ -19,6 +20,8 @@ app.use(cookieParser());
 app.use('/api/v1/auth',authRouter);
 app.use('/api/v1/feed',feedRouter);
 app.use('/api/v1/transaction',TransactionRouter);
+
+app.use('/api/v1/admin',adminRouter);
 
 cron.schedule('0 */2 * * *', () => {
     console.log('Refreshing feeds...');

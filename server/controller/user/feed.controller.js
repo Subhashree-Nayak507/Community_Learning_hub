@@ -12,11 +12,8 @@ export const getFeed = async (req, res) => {
     const query = {};
     const count = await Content.countDocuments(query);
     
-    // If no content exists, fetch from external source and store
     if (count === 0) {
-      const redditPosts = await fetchRedditPosts(); // Your function to fetch from Reddit
-      
-      // Save new posts to database
+      const redditPosts = await fetchRedditPosts(); 
       await Promise.all(
         redditPosts.map(post => 
           Content.updateOne(
@@ -26,8 +23,8 @@ export const getFeed = async (req, res) => {
                 ...post,
                 metadata: {
                   ...post.metadata,
-                  isPremium: post.metadata?.isPremium ?? true, // Ensure default
-                  unlockCost: post.metadata?.unlockCost ?? 10  // Ensure default
+                  isPremium: post.metadata?.isPremium ?? true, 
+                  unlockCost: post.metadata?.unlockCost ?? 10  
                 }
               }
             },
@@ -36,8 +33,6 @@ export const getFeed = async (req, res) => {
         )
       );
     }
-
-    // Now get paginated content
     const [content, total] = await Promise.all([
       Content.find(query)
         .sort({ createdAt: -1 })
@@ -238,6 +233,40 @@ export const reportContent = async (req, res) => {
     console.error('Error reporting content:', error);
     res.status(500).json({ 
       error: 'Failed to report content'
+    });
+  }
+};
+
+export const premiumContent = async (req, res) => {
+  try {
+    const premiumContents = await Content.find({ 
+      'metadata.isPremium': true 
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+    const formattedContent = premiumContents.map(content => ({
+      _id: content._id,
+      title: content.title,
+      preview: content.preview,
+      originalUrl: content.originalUrl,
+      metadata: {
+        isPremium: content.metadata.isPremium,
+        unlockCost: content.metadata.unlockCost
+      },
+      createdAt: content.createdAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: premiumContents.length,
+      data: formattedContent
+    });
+
+  } catch (error) {
+    console.error('Premium Content Error:', error);
+    res.status(500).json({
+      message: 'Failed to fetch premium content',
     });
   }
 };
